@@ -1,7 +1,8 @@
 {
-  "name": "sorosusu-frontend",
+  "name": "verinode-frontend",
   "version": "0.1.0",
   "private": true,
+  "description": "Frontend for VeriNode — decentralized savings circles (ROSCA) protocol on Stellar Soroban",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
