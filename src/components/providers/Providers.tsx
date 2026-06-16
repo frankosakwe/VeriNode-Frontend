@@ -1,25 +1,15 @@
-"use client"
+'use client';
 
-import { type ReactNode, useEffect } from "react"
-import { WalletProvider } from "./WalletProvider"
-import { SessionGuard } from "./SessionGuard"
-import { useAuthStore } from "@/src/store/authStore"
-import { useStakingStore } from "@/src/store/stakingStore"
+import React from 'react';
+import { QueryProvider } from '@/src/components/providers/QueryProvider';
+import { WalletProvider } from '@/src/components/providers/WalletProvider';
 
-export function Providers({ children }: { children: ReactNode }) {
-  useEffect(() => {
-    if (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test") {
-      const win = window as Record<string, unknown>
-      win.__TEST_STORES__ = {
-        auth: useAuthStore,
-        staking: useStakingStore,
-      }
-    }
-  }, [])
-
+export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <WalletProvider walletType={null} walletAddress={null}>
-      <SessionGuard>{children}</SessionGuard>
-    </WalletProvider>
-  )
+    <QueryProvider>
+      <WalletProvider>
+        {children}
+      </WalletProvider>
+    </QueryProvider>
+  );
 }
