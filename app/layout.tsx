@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ToastProvider } from "@/src/components/Toast";
-import { RetryWatcher } from "@/src/components/RetryWatcher";
-import { PendingTransactionsBanner } from "@/src/components/PendingTransactionsBanner";
+import { Providers } from "@/src/components/providers/Providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "VeriNode - Staking",
-  description: "Decentralized savings circles (ROSCA) protocol on Stellar Soroban",
+  title: "VeriNode",
+  description: "VeriNode — decentralized savings circles (ROSCA) protocol on Stellar Soroban",
 };
 
 export default function RootLayout({
@@ -30,11 +28,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ToastProvider>
-          <PendingTransactionsBanner />
-          <RetryWatcher />
-          {children}
-        </ToastProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
