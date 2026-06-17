@@ -1,27 +1,34 @@
-# VeriNode — Frontend
+# VeriNode-Frontend
 
-Next.js web application for VeriNode: a decentralized savings circles (ROSCA) protocol on Stellar Soroban.
+Next.js web application for the VeriNode Decentralized Savings Circle (ROSCA) protocol, offering an interface for circle participation, collateral staking, leniency voting, and quadratic governance.
 
-## Features
+## 🚀 Key Features
+* **Interactive Savings Circles:** Interface to create, join, deposit, and view payout orders for Rotating Savings and Credit Association (ROSCA) groups.
+* **Collateral & Governance Hub:** Dedicated screens for locking collateral, nominating safety buddies, and submitting/voting on leniency requests.
+* **Quadratic Voting Interface:** Fully-featured portal to propose and cast quadratic votes for large circle rule changes.
 
-- **Savings Circles**: Create and join decentralized ROSCA savings groups
-- **Collateral Management**: Manage collateralized participation in savings circles
-- **Quadratic Voting**: Participate in governance with quadratic voting mechanisms
-- **Emergency Safeguards**: Access emergency withdrawal and leniency voting features
-- **Transaction History**: View deposit, payout, and savings history
+## 🛠️ Tech Stack
+* **Language/Framework:** Next.js (React) / TypeScript
+* **Key Dependencies:** `next`, `react`, `tailwindcss`
 
-## Tech Stack
+## 📦 Getting Started
 
-- [Next.js](https://nextjs.org/) — React framework
-- [TypeScript](https://www.typescriptlang.org/) — Type safety
-- [Tailwind CSS](https://tailwindcss.com/) — Styling
-- [Stellar Soroban](https://stellar.org/) — Smart contract integration
+### Prerequisites
+Ensure you have the required toolchains installed:
+* Node.js (v18 or higher recommended)
+* npm (Node Package Manager)
 
-## Getting Started
-
+### Installation & Local Setup
 ```bash
+# Clone the repository (if running manually)
+git clone https://github.com/VeriNode-Labs/VeriNode-Frontend
+
+# Install dependencies or build
 npm install
+
+# Start development server
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to view the app.
+## 🤝 Contributing
+Contributions are highly welcome. Please ensure your commits are cryptographically signed using GPG or SSH keys. For major structural changes, please open an issue first to discuss your proposal.
