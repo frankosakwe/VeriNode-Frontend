@@ -2,6 +2,7 @@
 
 import React, {
   createContext,
+  useContext,
   useCallback,
   useEffect,
   useMemo,
@@ -12,12 +13,21 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { WalletAccount, WalletProviderType } from '@/src/types/wallet';
 import { clearAllCaches } from '@/src/lib/reactQuery';
 
+interface WalletProviders {
+  freighter?: { isConnected: () => boolean }
+  lobstr?: { isConnected: () => boolean }
+  xbull?: { isConnected: () => boolean }
+  albedo?: { isConnected: () => boolean }
+}
+
 interface WalletContextValue {
   activeAccount: WalletAccount | null;
   isConnected: boolean;
   pendingAccountSwitch: boolean;
   connect: () => Promise<void>;
   disconnect: () => void;
+  walletType: WalletProviderType | null;
+  providers: WalletProviders;
 }
 
 export const WalletContext = createContext<WalletContextValue>({
@@ -26,6 +36,8 @@ export const WalletContext = createContext<WalletContextValue>({
   pendingAccountSwitch: false,
   connect: async () => {},
   disconnect: () => {},
+  walletType: null,
+  providers: {},
 });
 
 interface WalletStore {
@@ -87,6 +99,25 @@ function detectProvider(): WalletProviderType | null {
   if (window.webln) return 'lobstr';
   if (window.albedo) return 'albedo';
   return null;
+}
+
+function getWalletProviders(): WalletProviders {
+  if (typeof window === 'undefined') return {};
+  const w = window as unknown as Record<string, unknown>;
+  return {
+    freighter: w.freighterApi ? { isConnected: () => true } : undefined,
+    lobstr: w.lobstr ? { isConnected: () => true } : undefined,
+    xbull: w.xbull ? { isConnected: () => true } : undefined,
+    albedo: w.albedo ? { isConnected: () => true } : undefined,
+  };
+}
+
+export function useWalletContext() {
+  const context = useContext(WalletContext);
+  if (!context) {
+    throw new Error('useWalletContext must be used within a WalletProvider');
+  }
+  return context;
 }
 
 function captureBreadcrumb(previousKey: string | null, newKey: string | null, flushDuration: number, cacheEntriesInvalidated: number) {
@@ -199,13 +230,18 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const walletProviderType = activeAccount?.provider ?? detectProvider()
+  const providers = useMemo(() => getWalletProviders(), [])
+
   const value = useMemo<WalletContextValue>(() => ({
     activeAccount,
     isConnected: store.isConnected,
     pendingAccountSwitch: store.pendingAccountSwitch,
     connect,
     disconnect,
-  }), [activeAccount, connect, disconnect]);
+    walletType: walletProviderType,
+    providers,
+  }), [activeAccount, connect, disconnect, walletProviderType, providers]);
 
   return (
     <WalletContext.Provider value={value}>

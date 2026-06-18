@@ -90,7 +90,7 @@ test.describe('Wallet account switching - race condition prevention', () => {
       window.addEventListener('wallet:accountFlushed', (event: Event) => {
         const detail = (event as CustomEvent<AccountSwitchDetail>).detail;
         window.__capturedKeys = window.__capturedKeys || [];
-        window.__capturedKeys.push(detail.newKey);
+        if (detail.newKey) window.__capturedKeys.push(detail.newKey);
       });
     });
 
