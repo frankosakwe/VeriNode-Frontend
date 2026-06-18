@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-let nextConfig: NextConfig = {
+const nextConfig: NextConfig = {
   headers: async () => [
     {
       source: "/sw.js",
@@ -26,41 +26,5 @@ let nextConfig: NextConfig = {
     },
   ],
 };
-
-try {
-  // next-pwa is optional — use manual service worker if not installed
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const withPWA = require("next-pwa");
-  nextConfig = withPWA({
-    dest: "public",
-    runtimeCaching: [
-      {
-        urlPattern:
-          /^https?:\/\/.*\/_next\/static\/.*/i,
-        handler: "CacheFirst",
-        options: {
-          cacheName: "static-assets",
-          expiration: {
-            maxEntries: 200,
-            maxAgeSeconds: 30 * 24 * 60 * 60,
-          },
-        },
-      },
-      {
-        urlPattern:
-          /^https?:\/\/.*\/api\/v1\/(nodes|attestations)\/.*/i,
-        handler: "NetworkFirst",
-        options: {
-          cacheName: "api-cache",
-          networkTimeoutSeconds: 5,
-        },
-      },
-    ],
-  })(nextConfig);
-} catch {
-  console.info(
-    "[next-pwa] not available — using manual service worker setup",
-  );
-}
 
 export default nextConfig;
