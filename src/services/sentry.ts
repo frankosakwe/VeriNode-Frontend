@@ -5,11 +5,11 @@ interface LogoutEvent {
   pendingTransactionsCount: number
 }
 
-export function captureLogoutEvent(event: LogoutEvent) {
+export async function captureLogoutEvent(event: LogoutEvent) {
   if (typeof process !== "undefined" && process.env.NEXT_PUBLIC_SENTRY_DSN) {
     try {
-      const Sentry = require("@sentry/nextjs")
-      Sentry.captureEvent({
+      const { captureEvent } = await import("@sentry/nextjs")
+      captureEvent({
         message: "Forced logout due to wallet disconnect",
         level: "warning",
         tags: { walletType: event.walletType },
