@@ -4,7 +4,6 @@ import React, {
   createContext,
   useContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -14,42 +13,25 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { WalletAccount, WalletProviderType } from '@/src/types/wallet';
 import { clearAllCaches } from '@/src/lib/reactQuery';
 
-interface WalletProviders {
-  freighter?: { isConnected: () => boolean }
-  lobstr?: { isConnected: () => boolean }
-  xbull?: { isConnected: () => boolean }
-  albedo?: { isConnected: () => boolean }
-}
-
 interface WalletContextValue {
   activeAccount: WalletAccount | null;
   isConnected: boolean;
   pendingAccountSwitch: boolean;
-  providers: Record<string, { isConnected: () => boolean }>;
   walletType: WalletProviderType | null;
+  providers: Record<string, { isConnected: () => boolean }>;
   connect: () => Promise<void>;
   disconnect: () => void;
-  walletType: WalletProviderType | null;
-  providers: WalletProviders;
 }
 
 export const WalletContext = createContext<WalletContextValue>({
   activeAccount: null,
   isConnected: false,
   pendingAccountSwitch: false,
-  providers: {},
   walletType: null,
+  providers: {},
   connect: async () => {},
   disconnect: () => {},
-  walletType: null,
-  providers: {},
 });
-
-export function useWalletContext() {
-  const context = useContext(WalletContext);
-  if (!context) throw new Error("useWalletContext must be used within a WalletProvider");
-  return context;
-}
 
 interface WalletStore {
   activeAccount: WalletAccount | null;
@@ -112,15 +94,10 @@ function detectProvider(): WalletProviderType | null {
   return null;
 }
 
-function getWalletProviders(): WalletProviders {
-  if (typeof window === 'undefined') return {};
-  const w = window as unknown as Record<string, unknown>;
-  return {
-    freighter: w.freighterApi ? { isConnected: () => true } : undefined,
-    lobstr: w.lobstr ? { isConnected: () => true } : undefined,
-    xbull: w.xbull ? { isConnected: () => true } : undefined,
-    albedo: w.albedo ? { isConnected: () => true } : undefined,
-  };
+function captureBreadcrumb(previousKey: string | null, newKey: string | null, flushDuration: number, cacheEntriesInvalidated: number) {
+  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
+    console.info('[WalletProvider] account switch:', { previousKey, newKey, flushDuration, cacheEntriesInvalidated });
+  }
 }
 
 export function useWalletContext() {
@@ -129,12 +106,6 @@ export function useWalletContext() {
     throw new Error('useWalletContext must be used within a WalletProvider');
   }
   return context;
-}
-
-function captureBreadcrumb(previousKey: string | null, newKey: string | null, flushDuration: number, cacheEntriesInvalidated: number) {
-  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
-    console.info('[WalletProvider] account switch:', { previousKey, newKey, flushDuration, cacheEntriesInvalidated });
-  }
 }
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
