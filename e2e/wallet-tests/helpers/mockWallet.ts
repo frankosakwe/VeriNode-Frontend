@@ -1,0 +1,346 @@
+import { Page } from '@playwright/test';
+import type { TestAccount } from '../fixtures/walletAccounts';
+
+/**
+ * Mock implementation of the Freighter API for E2E testing
+ * This provides a complete wallet interface without requiring a real browser extension
+ */
+
+export interface MockWalletOptions {
+  /** Whether the wallet should report as connected */
+  isConnected?: boolean;
+  /** Network to use (testnet, public) */
+  network?: 'testnet' | 'public';
+  /** Whether to simulate network errors */
+  simulateNetworkError?: boolean;
+}
+
+/**
+ * Simple mock signing function that returns a deterministic signature
+ * In a real implementation, this would use the Stellar SDK to properly sign
+ */
+function mockSign(data: string, secret: string): string {
+  // Create a deterministic "signature" based on data and secret
+  // This is NOT cryptographically valid - just for testing UI flows
+  const hash = Array.from(data + secret).reduce(
+    (hash, char) => ((hash << 5) - hash) + char.charCodeAt(0),
+    0
+  );
+  return `MOCK_SIG_${Math.abs(hash).toString(16).toUpperCase().padStart(64, '0')}`;
+}
+
+/**
+ * Injects a mock Freighter wallet into the page context
+ * Must be called via page.addInitScript before any app code runs
+ */
+export async function injectMockWallet(
+  page: Page,
+  account: TestAccount,
+  options: MockWalletOptions = {}
+): Promise<void> {
+  const { isConnected = true, network = 'testnet', simulateNetworkError = false } = options;
+
+  await page.addInitScript(
+    ({ account, isConnected, network, simulateNetworkError }) => {
+      // Mock Freighter API (stellarWeb3)
+      window.stellarWeb3 = {
+        isConnected: async () => {
+          if (simulateNetworkError) {
+            throw new Error('Network connection failed');
+          }
+          return { isConnected };
+        },
+        getPublicKey: async () => {
+          if (simulateNetworkError) {
+            throw new Error('Network connection failed');
+          }
+          if (!isConnected) {
+            throw new Error('Wallet not connected');
+          }
+          return account.publicKey;
+        },
+        signTransaction: async (tx: string) => {
+          if (simulateNetworkError) {
+            throw new Error('Network connection failed');
+          }
+          if (!isConnected) {
+            throw new Error('Wallet not connected');
+          }
+          // Mock signing - create deterministic signature
+          const hash = Array.from(tx + account.secret).reduce(
+            (hash, char) => ((hash << 5) - hash) + char.charCodeAt(0),
+            0
+          );
+          const signature = `MOCK_SIG_${Math.abs(hash).toString(16).toUpperCase().padStart(64, '0')}`;
+          return { signedTx: signature };
+        },
+        signMessage: async (message: string) => {
+          if (simulateNetworkError) {
+            throw new Error('Network connection failed');
+          }
+          if (!isConnected) {
+            throw new Error('Wallet not connected');
+          }
+          // Mock signing - create deterministic signature
+          const hash = Array.from(message + account.secret).reduce(
+            (hash, char) => ((hash << 5) - hash) + char.charCodeAt(0),
+            0
+          );
+          const signature = `MOCK_SIG_${Math.abs(hash).toString(16).toUpperCase().padStart(64, '0')}`;
+          return { signature };
+        },
+        getNetwork: async () => {
+          if (simulateNetworkError) {
+            throw new Error('Network connection failed');
+          }
+          return network;
+        },
+      };
+
+      // Also add Lobstr support (webln)
+      window.webln = {
+        getPublicKey: async () => {
+          if (!isConnected) throw new Error('Wallet not connected');
+          return account.publicKey;
+        },
+        signTransaction: async (tx: string) => {
+          if (!isConnected) throw new Error('Wallet not connected');
+          const hash = Array.from(tx + account.secret).reduce(
+            (hash, char) => ((hash << 5) - hash) + char.charCodeAt(0),
+            0
+          );
+          return `MOCK_SIG_${Math.abs(hash).toString(16).toUpperCase().padStart(64, '0')}`;
+        },
+      };
+
+      // Add Albedo support
+      window.albedo = {
+        getPublicKey: async () => {
+          if (!isConnected) throw new Error('Wallet not connected');
+          return account.publicKey;
+        },
+        signTransaction: async (tx: string) => {
+          if (!isConnected) throw new Error('Wallet not connected');
+          const hash = Array.from(tx + account.secret).reduce(
+            (hash, char) => ((hash << 5) - hash) + char.charCodeAt(0),
+            0
+          );
+          return `MOCK_SIG_${Math.abs(hash).toString(16).toUpperCase().padStart(64, '0')}`;
+        },
+      };
+
+      // Store mock account info for debugging
+      (window as any).__mockWalletAccount = account;
+    },
+    { account, isConnected, network, simulateNetworkError }
+  );
+}
+
+/**
+ * Injects support for multiple mock accounts with account switching
+ * Useful for testing account switch flows
+ */
+export async function injectMockWalletWithSwitching(
+  page: Page,
+  accounts: TestAccount[],
+  initialAccountIndex: number = 0
+): Promise<void> {
+  await page.addInitScript(
+    ({ accounts, initialIndex }) => {
+      let currentAccountIndex = initialIndex;
+
+      const getCurrentAccount = () => accounts[currentAccountIndex];
+
+      window.stellarWeb3 = {
+        isConnected: async () => ({ isConnected: true }),
+        getPublicKey: async () => getCurrentAccount().publicKey,
+        signTransaction: async (tx: string) => {
+          const account = getCurrentAccount();
+          const hash = Array.from(tx + account.secret).reduce(
+            (hash, char) => ((hash << 5) - hash) + char.charCodeAt(0),
+            0
+          );
+          const signature = `MOCK_SIG_${Math.abs(hash).toString(16).toUpperCase().padStart(64, '0')}`;
+          return { signedTx: signature };
+        },
+        signMessage: async (message: string) => {
+          const account = getCurrentAccount();
+          const hash = Array.from(message + account.secret).reduce(
+            (hash, char) => ((hash << 5) - hash) + char.charCodeAt(0),
+            0
+          );
+          const signature = `MOCK_SIG_${Math.abs(hash).toString(16).toUpperCase().padStart(64, '0')}`;
+          return { signature };
+        },
+        getNetwork: async () => 'testnet',
+      };
+
+      // Helper function to switch accounts
+      (window as any).__mockSwitchAccount = (index: number) => {
+        if (index >= 0 && index < accounts.length) {
+          currentAccountIndex = index;
+          window.dispatchEvent(
+            new CustomEvent('stellar-wallet:accountChange', {
+              detail: { publicKey: accounts[index].publicKey },
+            })
+          );
+        }
+      };
+
+      (window as any).__mockWalletAccounts = accounts;
+    },
+    { accounts, initialIndex: initialAccountIndex }
+  );
+}
+
+/**
+ * Helper to reset all Zustand stores in the app
+ * Ensures clean state between tests
+ */
+export async function resetStores(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    // Reset auth store
+    if ((window as any).useAuthStore) {
+      const authStore = (window as any).useAuthStore.getState();
+      if (authStore.logout) authStore.logout();
+    }
+
+    // Reset staking store
+    if ((window as any).useStakingStore) {
+      const stakingStore = (window as any).useStakingStore.getState();
+      if (stakingStore.reset) stakingStore.reset();
+    }
+
+    // Clear localStorage
+    localStorage.clear();
+
+    // Clear sessionStorage
+    sessionStorage.clear();
+
+    // Clear cookies
+    document.cookie.split(';').forEach((cookie) => {
+      const name = cookie.split('=')[0].trim();
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+    });
+  });
+}
+
+/**
+ * Setup API route mocking for common wallet-gated endpoints
+ */
+export async function setupAPIMocks(page: Page): Promise<void> {
+  // Mock authentication challenge endpoint
+  await page.route('**/api/v1/auth/challenge', (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        challenge: 'mock_challenge_' + Date.now(),
+        expiresAt: Date.now() + 300000, // 5 minutes
+      }),
+    });
+  });
+
+  // Mock authentication verification endpoint
+  await page.route('**/api/v1/auth/verify', (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        token: 'mock_jwt_token_' + Date.now(),
+        expiresAt: Date.now() + 3600000, // 1 hour
+      }),
+    });
+  });
+
+  // Mock staking endpoints
+  await page.route('**/api/v1/staking/stake', (route) => {
+    const request = route.request();
+    const postData = request.postDataJSON();
+    
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        txHash: 'mock_tx_hash_' + Date.now(),
+        amount: postData?.amount || '0',
+        status: 'confirmed',
+      }),
+    });
+  });
+
+  await page.route('**/api/v1/staking/unstake', (route) => {
+    const request = route.request();
+    const postData = request.postDataJSON();
+    
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        txHash: 'mock_tx_hash_' + Date.now(),
+        amount: postData?.amount || '0',
+        status: 'confirmed',
+      }),
+    });
+  });
+
+  // Mock staking balance endpoint
+  await page.route('**/api/staking/**', (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        staked: '1000.00',
+        rewards: '50.25',
+        unlocked: '100.00',
+      }),
+    });
+  });
+
+  // Mock node registration endpoint
+  await page.route('**/api/v1/nodes/register', (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        nodeId: 'mock_node_' + Date.now(),
+        status: 'registered',
+      }),
+    });
+  });
+
+  // Mock attestation submission endpoint
+  await page.route('**/api/v1/attestations/submit', (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        attestationId: 'mock_attestation_' + Date.now(),
+        status: 'submitted',
+      }),
+    });
+  });
+
+  // Mock settings update endpoint
+  await page.route('**/api/v1/settings', (route) => {
+    if (route.request().method() === 'PUT' || route.request().method() === 'PATCH') {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          updated: route.request().postDataJSON(),
+        }),
+      });
+    } else {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          notifications: true,
+          theme: 'dark',
+        }),
+      });
+    }
+  });
+}
