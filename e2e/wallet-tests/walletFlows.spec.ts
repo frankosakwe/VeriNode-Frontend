@@ -9,9 +9,10 @@ import { TEST_ACCOUNTS, DEFAULT_TEST_ACCOUNT } from './fixtures/walletAccounts';
  */
 
 test.describe('Wallet E2E - Authentication Flows', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, context }) => {
+    // Clear all cookies and storage before each test
+    await context.clearCookies();
     await setupAPIMocks(page);
-    await resetStores(page);
   });
 
   test('should connect wallet and authenticate user', async ({ page }) => {
@@ -103,9 +104,9 @@ test.describe('Wallet E2E - Authentication Flows', () => {
 });
 
 test.describe('Wallet E2E - Transaction Signing', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, context }) => {
+    await context.clearCookies();
     await setupAPIMocks(page);
-    await resetStores(page);
     await injectMockWallet(page, DEFAULT_TEST_ACCOUNT);
   });
 
@@ -164,9 +165,9 @@ test.describe('Wallet E2E - Transaction Signing', () => {
 });
 
 test.describe('Wallet E2E - Staking Operations', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, context }) => {
+    await context.clearCookies();
     await setupAPIMocks(page);
-    await resetStores(page);
     await injectMockWallet(page, DEFAULT_TEST_ACCOUNT);
   });
 
@@ -262,9 +263,9 @@ test.describe('Wallet E2E - Staking Operations', () => {
 });
 
 test.describe('Wallet E2E - Node Registration', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, context }) => {
+    await context.clearCookies();
     await setupAPIMocks(page);
-    await resetStores(page);
     await injectMockWallet(page, DEFAULT_TEST_ACCOUNT);
   });
 
@@ -289,9 +290,9 @@ test.describe('Wallet E2E - Node Registration', () => {
 });
 
 test.describe('Wallet E2E - Attestation Submission', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, context }) => {
+    await context.clearCookies();
     await setupAPIMocks(page);
-    await resetStores(page);
     await injectMockWallet(page, DEFAULT_TEST_ACCOUNT);
   });
 
@@ -316,9 +317,9 @@ test.describe('Wallet E2E - Attestation Submission', () => {
 });
 
 test.describe('Wallet E2E - Settings Management', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, context }) => {
+    await context.clearCookies();
     await setupAPIMocks(page);
-    await resetStores(page);
     await injectMockWallet(page, DEFAULT_TEST_ACCOUNT);
   });
 
@@ -356,9 +357,9 @@ test.describe('Wallet E2E - Settings Management', () => {
 });
 
 test.describe('Wallet E2E - Account Switching', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, context }) => {
+    await context.clearCookies();
     await setupAPIMocks(page);
-    await resetStores(page);
   });
 
   test('should switch between multiple accounts', async ({ page }) => {
@@ -434,9 +435,9 @@ test.describe('Wallet E2E - Account Switching', () => {
 });
 
 test.describe('Wallet E2E - Error Handling', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, context }) => {
+    await context.clearCookies();
     await setupAPIMocks(page);
-    await resetStores(page);
   });
 
   test('should handle network errors gracefully', async ({ page }) => {
@@ -498,25 +499,20 @@ test.describe('Wallet E2E - Error Handling', () => {
   test('should handle timeout errors', async ({ page }) => {
     await injectMockWallet(page, DEFAULT_TEST_ACCOUNT);
 
-    // Override endpoint to simulate timeout
+    // Override endpoint to simulate timeout - don't resolve immediately
     await page.route('**/api/v1/staking/stake', async (route) => {
-      await page.waitForTimeout(5000); // Simulate slow response
-      route.fulfill({
-        status: 504,
-        contentType: 'application/json',
-        body: JSON.stringify({ error: 'Gateway timeout' }),
-      });
+      // Simulate a slow response by not calling fulfill immediately
+      // The AbortController in the evaluate will cancel this request
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+      route.abort('timedout');
     });
 
     await page.goto('/');
 
-    // Set a shorter timeout for the test
-    page.setDefaultTimeout(3000);
-
     const result = await page.evaluate(async () => {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        const timeoutId = setTimeout(() => controller.abort(), 1500); // 1.5 second timeout
 
         const response = await fetch('/api/v1/staking/stake', {
           method: 'POST',
@@ -533,13 +529,14 @@ test.describe('Wallet E2E - Error Handling', () => {
     });
 
     expect(result.error).toBeTruthy();
+    expect(result.error).toContain('Abort');
   });
 });
 
 test.describe('Wallet E2E - Logout Flow', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, context }) => {
+    await context.clearCookies();
     await setupAPIMocks(page);
-    await resetStores(page);
     await injectMockWallet(page, DEFAULT_TEST_ACCOUNT);
   });
 

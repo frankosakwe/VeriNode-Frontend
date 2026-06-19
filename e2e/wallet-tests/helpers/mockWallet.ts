@@ -192,31 +192,42 @@ export async function injectMockWalletWithSwitching(
  */
 export async function resetStores(page: Page): Promise<void> {
   await page.evaluate(() => {
-    // Reset auth store
-    const authStore = (window as unknown as { useAuthStore?: { getState: () => { logout?: () => void } } }).useAuthStore;
-    if (authStore) {
-      const state = authStore.getState();
-      if (state.logout) state.logout();
+    try {
+      // Reset auth store
+      const authStore = (window as unknown as { useAuthStore?: { getState: () => { logout?: () => void } } }).useAuthStore;
+      if (authStore) {
+        const state = authStore.getState();
+        if (state.logout) state.logout();
+      }
+
+      // Reset staking store
+      const stakingStore = (window as unknown as { useStakingStore?: { getState: () => { reset?: () => void } } }).useStakingStore;
+      if (stakingStore) {
+        const state = stakingStore.getState();
+        if (state.reset) state.reset();
+      }
+
+      // Clear localStorage (may not be available in all contexts)
+      if (typeof localStorage !== 'undefined') {
+        localStorage.clear();
+      }
+
+      // Clear sessionStorage
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.clear();
+      }
+
+      // Clear cookies
+      if (document.cookie) {
+        document.cookie.split(';').forEach((cookie) => {
+          const name = cookie.split('=')[0].trim();
+          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+        });
+      }
+    } catch (error) {
+      // Ignore errors when storage is not accessible (e.g., before page load)
+      console.warn('Could not reset stores:', error);
     }
-
-    // Reset staking store
-    const stakingStore = (window as unknown as { useStakingStore?: { getState: () => { reset?: () => void } } }).useStakingStore;
-    if (stakingStore) {
-      const state = stakingStore.getState();
-      if (state.reset) state.reset();
-    }
-
-    // Clear localStorage
-    localStorage.clear();
-
-    // Clear sessionStorage
-    sessionStorage.clear();
-
-    // Clear cookies
-    document.cookie.split(';').forEach((cookie) => {
-      const name = cookie.split('=')[0].trim();
-      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-    });
   });
 }
 
