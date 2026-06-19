@@ -15,17 +15,12 @@ interface StakingStore {
   reset: () => void
 }
 
-interface VerinodePerf {
-  chartRenderDuration: number
-}
-
 declare global {
   interface Window {
     __TEST_STORES__?: {
       auth: StoreApi<AuthStore>
       staking: StoreApi<StakingStore>
     }
-    __VERINODE_PERF__?: VerinodePerf
     freighterApi?: { isConnected: () => boolean }
     lobstr?: { isConnected: () => boolean }
     xbull?: { isConnected: () => boolean }
